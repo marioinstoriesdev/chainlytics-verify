@@ -1,0 +1,148 @@
+# Chainlytics Verify settings. Every tunable value lives here; the code holds no URLs, addresses or limits.
+# Secrets never go here: the RPC URL (it usually carries an API key), the Telegram bot token and the
+# operator's deployer list go in config.local.yaml next to this file (untracked), merged over this one at load.
+service:
+  name: chainlytics-verify
+  version: 0.1.0
+
+paths:
+  db: data/verify.db
+  reports_dir: data/reports
+
+network:
+  user_agent: chainlytics-verify/0.1 (+https://chainlytics.dev)
+  http_retries: 2
+  source_timeout_s: 15
+  source_sleep_s: 0.3
+  sol_usd_cache_s: 60
+
+rpc:
+  url: ""                    # set in config.local.yaml or CHAINLYTICS_VERIFY_RPC_URL; the hosted service uses RPC Fast
+  timeout_s: 30
+  retries: 3
+  retry_backoff_s: 0.5
+  signer_lookup: true        # page signatures back to the creation transaction
+  sig_page_limit: 1000
+  max_sig_pages: 25
+  max_supported_tx_version: 1   # mainnet now carries version-1 transactions
+
+solana:
+  wsol_mint: So11111111111111111111111111111111111111112
+  token_program: TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA
+  token2022_program: TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb
+  legacy_account_size: 165
+  lamports_per_sol: 1000000000
+  system_program: "11111111111111111111111111111111"
+
+pump:
+  program_id: 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P
+  mint_authority: TSLvdd1pWpHVjahSpsvCXUbgwsL3JAcvokwaKt1eokM
+  bonding_curve_seed: bonding-curve
+  discriminator_bytes: 8
+  creator_offset: 49
+  initial_real_token_reserves: 793100000000000
+  token_decimals: 6
+
+sources:
+  jupiter:
+    enabled: true
+    url: https://lite-api.jup.ag/tokens/v2/search
+    query_param: query
+  dexscreener:
+    enabled: true
+    url: https://api.dexscreener.com/tokens/v1/solana/{mint}
+  rugcheck:
+    enabled: true
+    url: https://api.rugcheck.xyz/v1/tokens/{mint}/report
+
+# Agreement tolerances, fixed before any comparison is made.
+tolerance:
+  supply_rel: 0.000001
+  holders_rel: 0.05
+  top10_abs_pp: 2.0
+  price_curve_rel: 0.02
+  dev_share_abs_pp: 1.0
+
+# Deep checks (verify/forensics.py). Windows and caps bound the RPC cost of one deep check.
+forensics:
+  concurrency: 4
+  max_launch_txs: 40
+  launch:
+    sniper_slots: 3
+    min_buy_tokens: 1
+    tip_accounts:
+      96gYZGLnJYVFmbjzopPSU6QiEV5fGqZNyN9nmNhvrZU5: jito
+      HFqU5x63VTqvQss8hp11i4wVV8bD44PvwucfZ2bU7gRe: jito
+      Cw8CFyM9FkoMi7K7Crf6HNQqf4uEMzpKw6QNghXLvLkY: jito
+      ADaUMid9yfUytqMBgopwjb2DTLSokTSzL1zt6iGPaS49: jito
+      DfXygSm4jCyNCybVYYK6DwvWqjKee8pbDmJGcLWNDXjh: jito
+      ADuUkR4vqLUMWXxW9gh6D6L8pMSawimctcNZ5pGwDcEt: jito
+      DttWaMuVvTiduZRnguLF7jNxTgiMBZ1hyAumKUiL2KRL: jito
+      3AVi9Tg9Uo68tJfuvoKvqKNWKc5wPdSSdeBnizKZ6jT: jito
+
+sampler:
+  window_min_s: 300
+  window_max_s: 3600
+  default_n: 50
+  max_pages: 10
+
+index:
+  wilson_z: 1.96
+  default_days: 1
+
+api:
+  host: 127.0.0.1
+  port: 8710
+  cache_s: 60
+  page_deep: true
+  mint_min_len: 32
+  mint_max_len: 44
+
+telegram:
+  enabled: false
+  bot_token: ""               # never here: set it in config.local.yaml (untracked)
+  api_base: https://api.telegram.org
+  poll_timeout_s: 30
+  deep: true
+  page_url: ""               # public base URL of the token page, if exposed
+
+anchor:
+  memo_prefix: "chainlytics-verify:receipts-root:"
+factories:
+  source: "operator-supplied list of top high-volume pump.fun deployers (their own profits unverified)"
+  ev_status: "outside buyers lost 14.1% per trade on launches by listed deployers vs 8.2% on random launches (pre-registered test)"
+  deployers: []            # the operator's list is not published; set it in config.local.yaml
+
+daily:
+  # run once a day (verify.index daily); the memo itself is posted by the operator
+  n: 50                  # random new mints, standard check
+  deep_n: 20             # random new mints, deep check
+  report_days: 1
+  report_origins:
+    - index
+    - index_deep
+
+# Token page panel "Before you buy": a red-flag checklist of facts about the launch, and the historical outcome
+# for an outside buyer from the operator's pre-registered study (costs included).
+# The flags are descriptive; only the listed-deployer difference was tested.
+panel:
+  enabled: true
+  thresholds:
+    dev_mints: 20
+    dev_sold_pct_of_initial: 90
+    snipers_pct: 10
+    bundle_wallets: 1
+  bands:
+    low_max: 1
+    mid_max: 3
+  history:
+    sample_note: "about 600 launches per group"
+    groups:
+      random:
+        label: "Random pump.fun launches"
+        win_rate: 0.107
+        mean: -0.082
+      listed:
+        label: "Launches by listed top deployers"
+        win_rate: 0.069
+        mean: -0.141

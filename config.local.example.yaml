@@ -1,0 +1,8 @@
+# Copy to config.local.yaml (untracked) and fill in. Merged over config.yaml at load.
+rpc:
+  url: "https://<your-solana-rpc-endpoint>"
+telegram:
+  enabled: false
+  bot_token: ""
+factories:
+  deployers: []   # wallet addresses to flag
