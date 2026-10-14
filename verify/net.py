@@ -58,11 +58,14 @@ class JsonRpc:
         self.retries = r["retries"]
         self.backoff = r["retry_backoff_s"]
         self._client = None
+        self._loop = None
         self._id = 0
 
     async def _rpc_call(self, method, params):
-        if self._client is None:
+        loop = asyncio.get_running_loop()
+        if self._client is None or self._loop is not loop:
             self._client = httpx.AsyncClient(timeout=self.timeout)
+            self._loop = loop
         self._id += 1
         body = {"jsonrpc": "2.0", "id": self._id, "method": method, "params": params}
         last = None

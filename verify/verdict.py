@@ -23,7 +23,7 @@ def evaluate(chain, sources, sol_usd, cfg):
             if metric.startswith("_"):
                 continue
             if metric == "price_sol":
-                out.append(_price(name, v, defs, sol_usd, t))
+                out.append(_price(name, v, defs, sol_usd, t, bool((chain.get("_context") or {}).get("quote_mint"))))
                 continue
             sv = v.get(metric)
             row = {"source": name, "metric": metric, "source_value": sv, "chain": defs,
@@ -52,7 +52,7 @@ def evaluate(chain, sources, sol_usd, cfg):
     return out
 
 
-def _price(name, v, defs, sol_usd, t):
+def _price(name, v, defs, sol_usd, t, quoted=False):
     rng = defs.get("curve_spot")
     sv = v.get("price_sol")
     if sv is None and v.get("price_usd") is not None and sol_usd:
@@ -66,7 +66,8 @@ def _price(name, v, defs, sol_usd, t):
         row["note"] = "price is only judged while the token is on the bonding curve"
     else:
         lo, hi = rng
-        ok = lo * (1 - t["price_curve_rel"]) <= sv <= hi * (1 + t["price_curve_rel"])
+        rel = t["price_quoted_rel"] if quoted else t["price_curve_rel"]
+        ok = lo * (1 - rel) <= sv <= hi * (1 + rel)
         row["status"], row["definition"] = ("matches", "curve_spot") if ok else ("diverges", None)
         row["deviation"] = round(sv / ((lo + hi) / 2) - 1, 4)
     return row

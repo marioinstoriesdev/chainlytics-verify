@@ -229,3 +229,12 @@ def test_local_config_merges_over_tracked_config(tmp_path, monkeypatch):
     monkeypatch.delenv(settings.LOCAL_ENV, raising=False)
     c = settings.load(str(base))
     assert c["telegram"] == {"enabled": True, "bot_token": "secret", "poll_timeout_s": 30}
+
+
+def test_token_quoted_curve_price():
+    c = {"virtual_token_reserves": 1073000000000000, "virtual_sol_reserves": 4292000000, "quote_mint": "Q"}
+    assert chain.curve_price_sol(c, CFG) is None
+    p = chain.curve_price_sol(c, CFG, {"decimals": 6, "sol_per_unit": 0.01})
+    assert abs(p - 4292 / 1.073e9 * 0.01) < 1e-15
+    s = dict(c, quote_mint=None, virtual_sol_reserves=30000000000)
+    assert abs(chain.curve_price_sol(s, CFG) - 30 / 1.073e9) < 1e-15

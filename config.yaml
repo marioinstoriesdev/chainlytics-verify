@@ -40,6 +40,7 @@ pump:
   bonding_curve_seed: bonding-curve
   discriminator_bytes: 8
   creator_offset: 49
+  quote_mint_offset: 83       # quote mint of token-quoted curves; the system program id means SOL
   initial_real_token_reserves: 793100000000000
   token_decimals: 6
 
@@ -61,6 +62,7 @@ tolerance:
   holders_rel: 0.05
   top10_abs_pp: 2.0
   price_curve_rel: 0.02
+  price_quoted_rel: 0.05     # token-quoted curves: converted through the quote token's price
   dev_share_abs_pp: 1.0
 
 # Deep checks (verify/forensics.py). Windows and caps bound the RPC cost of one deep check.

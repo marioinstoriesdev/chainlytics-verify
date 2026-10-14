@@ -58,7 +58,18 @@ class Verifier:
                 signer = signer0(create_tx) if create_tx else None
             except RuntimeError as e:
                 errors.append(str(e))
-        chain_values = definitions.compute(before, after, accounts, signer, self.cfg)
+        quote = None
+        qm = (after.get("curve") or {}).get("quote_mint")
+        if qm:
+            quote = {"mint": qm, "decimals": None, "sol_per_unit": None}
+            try:
+                quote["decimals"] = await chain.mint_decimals(qm)
+            except RuntimeError as e:
+                errors.append(str(e))
+            usd = await asyncio.to_thread(self.sources.usd_price, qm, rec)
+            if usd and sol_usd:
+                quote["sol_per_unit"] = usd / sol_usd
+        chain_values = definitions.compute(before, after, accounts, signer, self.cfg, quote)
         verdicts = verdict.evaluate(chain_values, src, sol_usd, self.cfg)
         forensic = None
         if deep and m and accounts is not None:
@@ -78,7 +89,7 @@ class Verifier:
             "mint": mint, "created_ms": int(time.time() * 1000), "elapsed_s": round(time.time() - t0, 2), "deep": bool(deep),
             "found_on_chain": bool(m), "context": chain_values.pop("_context"),
             "slots": {"before": before.get("slot"), "after": after.get("slot")},
-            "sol_usd": sol_usd, "chain": chain_values,
+            "sol_usd": sol_usd, "quote": quote, "chain": chain_values,
             "sources": {k: {"latency_s": v["latency_s"], "error": v["error"]} for k, v in src.items()},
             "reported": {k: (v.get("values") or {}).get("reported") for k, v in src.items() if (v.get("values") or {}).get("reported")},
             "verdicts": verdicts, "forensics": forensic, "freshness": fresh, "errors": errors,

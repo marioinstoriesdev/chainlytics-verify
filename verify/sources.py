@@ -40,6 +40,10 @@ class Sources:
             self._sol = (val, time.time())
         return val
 
+    def usd_price(self, mint, rec):
+        raw, _, err = self._get("jupiter", mint, rec)
+        return _num((_pick_jupiter(raw, mint) or {}).get("usdPrice")) if not err else None
+
     def fetch_all(self, mint, rec):
         out = {}
         for name, s in self.cfg["sources"].items():

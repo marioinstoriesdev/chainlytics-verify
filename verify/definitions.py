@@ -52,7 +52,8 @@ REGISTRY = {
     },
     "price_sol": {
         "label": "Price (SOL per token)",
-        "defs": {"curve_spot": "Spot price from the bonding curve reserves, read before and after the source call."},
+        "defs": {"curve_spot": "Spot price from the bonding curve reserves, read before and after the source call; "
+                               "a curve quoted in another token is converted at that token's Jupiter price."},
     },
 }
 
@@ -73,7 +74,7 @@ def holder_stats(accounts, supply, decimals):
     }
 
 
-def compute(before, after, accounts, signer, cfg):
+def compute(before, after, accounts, signer, cfg, quote=None):
     """Chain values per metric and definition. Missing inputs give None, which later reads as not checked."""
     m = after.get("mint") or {}
     c_after, c_before = after.get("curve"), before.get("curve")
@@ -98,9 +99,10 @@ def compute(before, after, accounts, signer, cfg):
         out["dev_wallet"]["curve_creator"] = c_after["creator"]
         out["migrated"]["curve_complete"] = c_after["complete"]
         if not c_after["complete"] and c_before and not c_before["complete"]:
-            p0, p1 = curve_price_sol(c_before, cfg), curve_price_sol(c_after, cfg)
+            p0, p1 = curve_price_sol(c_before, cfg, quote), curve_price_sol(c_after, cfg, quote)
             if p0 and p1:
                 out["price_sol"]["curve_spot"] = (min(p0, p1), max(p0, p1))
     out["_context"] = {"pump_token": c_after is not None, "progress": (c_after or {}).get("progress"),
+                       "quote_mint": (c_after or {}).get("quote_mint"),
                        "slot_before": before.get("slot"), "slot_after": after.get("slot")}
     return out

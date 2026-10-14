@@ -50,6 +50,7 @@ def create_app(cfg, verifier=None):
         cid, cached = v().store.latest(mint, cfg["api"]["cache_s"] * 1000)
         if cached and (cached.get("deep") or not deep):
             cached["cached"] = True
+            cached["check_id"] = cid
             return cached
         return await v().verify(mint, origin="api", deep=deep)
 

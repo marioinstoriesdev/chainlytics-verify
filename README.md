@@ -97,7 +97,7 @@ CHAINLYTICS_VERIFY_CONFIG and CHAINLYTICS_VERIFY_LOCAL_CONFIG override the two p
 
 - Python 3.12 or newer; dependencies in requirements.txt. Any Solana JSON-RPC endpoint works; the hosted service at chainlytics.dev reads mainnet through RPC Fast and uses the operator's own hardened HTTP client in place of verify/net.py.
 - Deep checks need the creation transaction inside the RPC node's ledger window (about 12 hours on the node the hosted service uses). Older launches return creation_not_found, and creator-linked lookbacks are cut at the window and reported as lower bounds.
-- Bonding-curve price comparison is under review and hidden on the hosted token page; price after migration is not judged yet.
+- Price is judged only while a token is on the bonding curve. Curves quoted in another token are converted through that token's Jupiter price, with a wider tolerance (tolerance.price_quoted_rel); price after migration is not judged yet.
 - The factory flag reads deployers from the operator's list, which is not published here (factories.deployers is empty in this repository). Their own profits are unverified.
 - This build rebuilds the launch only; wallet-link tracing runs in the hosted service and is not included.
 

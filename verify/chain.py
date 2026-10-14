@@ -52,20 +52,30 @@ def decode_curve(acc, cfg):
     complete = raw[off + 40] == 1
     co = p["creator_offset"]
     creator = str(Pubkey.from_bytes(raw[co:co + 32])) if len(raw) >= co + 32 else None
+    qo = p["quote_mint_offset"]
+    quote = str(Pubkey.from_bytes(raw[qo:qo + 32])) if len(raw) >= qo + 32 else None
+    if quote == cfg["solana"]["system_program"]:
+        quote = None
     init = p["initial_real_token_reserves"]
     # progress is only defined for the standard curve size; other variants report None
     progress = 1.0 if complete else (1 - rtr / init if rtr <= init else None)
     return {"virtual_token_reserves": vtr, "virtual_sol_reserves": vsr, "real_token_reserves": rtr,
             "real_sol_reserves": rsr, "token_total_supply": tts, "complete": complete,
-            "progress": progress, "creator": creator}
+            "progress": progress, "creator": creator, "quote_mint": quote}
 
 
-def curve_price_sol(curve, cfg):
-    """Spot price in SOL per whole token from the virtual reserves."""
+def curve_price_sol(curve, cfg, quote=None):
+    """Spot price in SOL per whole token from the virtual reserves. A curve quoted in another token holds that
+    token in its "SOL" reserve fields; its price is converted with quote = {"decimals", "sol_per_unit"} and is None
+    when the quote's decimals or price are unknown."""
     if not curve or not curve["virtual_token_reserves"]:
         return None
-    sol = curve["virtual_sol_reserves"] / cfg["solana"]["lamports_per_sol"]
     tok = curve["virtual_token_reserves"] / 10 ** cfg["pump"]["token_decimals"]
+    if curve.get("quote_mint"):
+        if not quote or quote.get("decimals") is None or not quote.get("sol_per_unit"):
+            return None
+        return curve["virtual_sol_reserves"] / 10 ** quote["decimals"] / tok * quote["sol_per_unit"]
+    sol = curve["virtual_sol_reserves"] / cfg["solana"]["lamports_per_sol"]
     return sol / tok
 
 
@@ -102,6 +112,11 @@ class ChainReader:
         vals = (res or {}).get("value") or [None, None]
         return {"slot": (res.get("context") or {}).get("slot"), "mint": decode_mint(vals[0]),
                 "curve": decode_curve(vals[1], self.cfg)}
+
+    async def mint_decimals(self, mint):
+        res = await self.call("getMultipleAccounts", [[mint], {"encoding": "base64"}])
+        m = decode_mint(((res or {}).get("value") or [None])[0])
+        return m["decimals"] if m else None
 
     async def token_accounts(self, mint, program):
         s = self.cfg["solana"]
